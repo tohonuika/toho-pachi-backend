@@ -1,20 +1,37 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from dataclasses import dataclass
 import random
 import math
 
+
+# =========================
+# FastAPI アプリ本体
+# =========================
+
 app = FastAPI(title="Pachi Monte Carlo Simulator")
 
+# CORS（ブラウザからの OPTIONS / POST を通す）
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],      # 必要ならフロントのURLだけに絞ってOK
+    allow_credentials=True,
+    allow_methods=["*"],      # ["GET", "POST", "OPTIONS"] でもOK
+    allow_headers=["*"],
+)
 
-# ======== シミュレーション用データクラス ========
+
+# =========================
+# データクラス
+# =========================
 
 @dataclass
 class MachineBase:
     hit_prob: float         # 1回転あたりの大当たり確率 (例: 1/319)
     continue_prob: float    # 継続率 (0〜1)
-    cost_per_spin: float    # 1回転あたりの投資
+    cost_per_spin: float    # 1回転あたりの投資（玉 or 円）
 
 
 @dataclass
@@ -41,7 +58,9 @@ class SimResult:
     explosion_invest_avg: float
 
 
-# ======== API 入力モデル ========
+# =========================
+# Pydantic モデル（リクエスト用）
+# =========================
 
 class MachineInput(BaseModel):
     day_index: int
@@ -60,7 +79,9 @@ class SimulateRequest(BaseModel):
     rows: List[MachineInput]     # 1行=1台
 
 
-# ======== ヘルパー関数 ========
+# =========================
+# ヘルパー関数
+# =========================
 
 def percentile(values, q: float) -> float:
     if not values:
@@ -333,7 +354,9 @@ def analyze_machines(
     }
 
 
-# ======== API エンドポイント ========
+# =========================
+# エンドポイント
+# =========================
 
 @app.post("/simulate")
 def simulate(req: SimulateRequest):
@@ -400,6 +423,8 @@ def simulate(req: SimulateRequest):
     }
 
 
+# Render で "uvicorn main:app" を Start Command にしているなら、
+# 下のブロックは実行されないのでそのまま置いておいてOK。
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
